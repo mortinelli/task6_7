@@ -1,30 +1,20 @@
 #! /bin/bash
-extif=$(cat vm1.config | grep "EXTERNAL_IF=" | cut -d'"' -f2)
-intif=$(cat vm1.config | grep "INTERNAL_IF=" | cut -d'"' -f2)
-mgmntif=$(cat vm1.config | grep "MANAGEMENT_IF=" | cut -d'"' -f2)
-vlan=$(cat vm1.config | grep  "VLAN=" | cut -d "=" -f2)
-extip=$(cat vm1.config | grep "EXT_IP=" | cut -d'=' -f2)
-extgw=$(cat vm1.config | grep "EXT_GW=" | cut -d'=' -f2)
-intip=$(cat vm1.config | grep "INT_IP=" | cut -d'=' -f2)
-vlanip=$(cat vm1.config | grep "VLAN_IP=" | grep -v "APACHE_VLAN_IP=" | cut -d'=' -f2)
-nginxp=$(cat vm1.config | grep "NGINX_PORT=" | cut -d'=' -f2)
-apvlanip=$(cat vm1.config | grep "APACHE_VLAN_IP=" | cut -d'=' -f2)
-
+source vm1.config
 
 # config EXTERNAL_IF
-ifup $extif
-if [[ $extip = *"DHCP"* ]]; then
-dhclient $extif
+ifup $EXTERNAL_IF
+if [[ $EXT_IP = *"DHCP"* ]]; then
+dhclient $EXTERNAL_IF
 else
-ifconfig $extif $extip
-route add default gw $extgw
+ifconfig $EXTERNAL_IF $EXT_IP
+route add default gw $EXT_GW
 rm /run/resolvconf/resolv.conf
 echo "nameserver 8.8.8.8" > /run/resolvconf/resolv.conf
 fi
 
 #config INTERNAL_IF
-ifup $intif
-ifconfig $intif $intip
+ifup $INTERNAL_IF
+ifconfig $INTERNAL_IF $INT_IP
 
 # Nat config and routing
 echo 1 > /proc/sys/net/ipv4/ip_forward
@@ -32,17 +22,17 @@ iptables --flush
 iptables --table nat --flush
 iptables --delete-chain
 iptables --table nat --delete-chain
-iptables --table nat --append POSTROUTING --out-interface $extif -j MASQUERADE
-iptables --append FORWARD --in-interface $intif -j ACCEPT
+iptables --table nat --append POSTROUTING --out-interface $EXTERNAL_IF -j MASQUERADE
+iptables --append FORWARD --in-interface $INTERNAL_IF -j ACCEPT
 service ufw restart
 
 # vlan config
 apt-get update
 apt-get install vlan -y -qq
 modprobe 8021q
-vconfig add $intif $vlan
-ifup "$intif.$vlan"
-ifconfig "$intif.$vlan" $vlanip
+vconfig add $INTERNAL_IF $VLAN
+ifup "$INTERNAL_IF.$VLAN"
+ifconfig "$INTERNAL_IF.$VLAN" $VLAN_IP
 
 # external ip
 
@@ -104,13 +94,13 @@ http {\n
 \n
 \t    upstream streaming_example_com\n
 \t    {\n
-\t\t          server $curent_extip:$nginxp;\n
+\t\t          server $curent_extip:$NGINX_PORT;\n
 \t    }\n
 \n
  server\n
 \t    {\n
-\t\t        listen      $nginxp default ssl;\n
-\t\t        server_name $apvlanip;\n
+\t\t        listen      $NGINX_PORT default ssl;\n
+\t\t        server_name $APACHE_VLAN_IP;\n
 \t\t        access_log  /tmp/nginx_reverse_access.log;\n
 \t\t        error_log   /tmp/nginx_reverse_error.log;\n
 \t\t        ssl_session_cache    shared:SSL:1m;\n
@@ -125,7 +115,7 @@ http {\n
 \n
 \t\t        location /\n
 \t\t        {\n
-\t\t            proxy_pass http://$apvlanip;\n
+\t\t            proxy_pass http://$APACHE_VLAN_IP;\n
 \t\t        }\n
 \t    }\n
 }
