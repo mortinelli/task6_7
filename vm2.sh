@@ -24,6 +24,6 @@ ifup "$intif.$vlan"
 ifconfig "$intif.$vlan" $apvlanip
 
 apt-get install apache2 -y -qq
-cat /etc/apache2/ports.conf | sed -e "s/Listen 80/Listen 192.168.101.2:80/" > /tmp/ports.conf
+cat /etc/apache2/ports.conf | sed -e "s/Listen 80/Listen $apvlanip:80/" > /tmp/ports.conf
 mv /tmp/ports.conf /etc/apache2/ports.conf
 systemctl reload apache2
