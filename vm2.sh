@@ -17,7 +17,7 @@ vconfig add $INTERNAL_IF $VLAN
 ifup "$INTERNAL_IF.$VLAN"
 ifconfig "$INTERNAL_IF.$VLAN" $APACHE_VLAN_IP
 
-apt-get install apache2 -y -qq
-cat /etc/apache2/ports.conf | sed -e "s/Listen 80/Listen $APACHE_VLAN_IP:80/" > /tmp/ports.conf
+apt-get install apache2 -y 
+cat /etc/apache2/ports.conf | sed -e "s|Listen 80|Listen $(echo $APACHE_VLAN_IP|cut -d "/" -f1):80|" > /tmp/ports.conf
 mv /tmp/ports.conf /etc/apache2/ports.conf
 systemctl reload apache2
